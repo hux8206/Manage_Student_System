@@ -29,6 +29,7 @@ public class ManageClass_Sub {
     private TextField txtTenlop   = new TextField();
     private Label lblMsgMon       = new Label();
     private Label lblMsgLop       = new Label();
+    private TextField txtSoTC = new TextField();
 
     public ManageClass_Sub(Stage stage) {
         this.stage = stage;
@@ -75,9 +76,14 @@ public class ManageClass_Sub {
         // Bảng môn học
         TableColumn<Subject, String> colIdmon = new TableColumn<>("Mã môn");
         colIdmon.setCellValueFactory(new PropertyValueFactory<>("idmonhoc"));
+
         TableColumn<Subject, String> colTenmon = new TableColumn<>("Tên môn");
         colTenmon.setCellValueFactory(new PropertyValueFactory<>("tenmon"));
-        tableMonHoc.getColumns().addAll(colIdmon, colTenmon);
+
+        TableColumn<Subject, Integer> colSoTC = new TableColumn<>("Số TC");
+        colSoTC.setCellValueFactory(new PropertyValueFactory<>("sotinchi"));
+
+        tableMonHoc.getColumns().addAll(colIdmon, colTenmon, colSoTC);
         tableMonHoc.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tableMonHoc.setPrefHeight(200);
 
@@ -85,6 +91,7 @@ public class ManageClass_Sub {
             if (sel != null) {
                 txtIdmonhoc.setText(sel.getIdmonhoc());
                 txtTenmon.setText(sel.getTenmon());
+                txtSoTC.setText(String.valueOf(sel.getSotinchi()));
                 txtIdmonhoc.setDisable(true);
             }
         });
@@ -99,6 +106,11 @@ public class ManageClass_Sub {
         lblTenmon.setFont(Font.font("Arial", FontWeight.BOLD, 12));
         txtTenmon.setPromptText("Nhập tên môn...");
         txtTenmon.setPrefHeight(34);
+
+        Label lblSoTC = new Label("Số tín chỉ");
+        lblSoTC.setFont(Font.font("Arial", FontWeight.BOLD, 12));
+        txtSoTC.setPromptText("Nhập số tín chỉ (1, 2, hoặc 3)...");
+        txtSoTC.setPrefHeight(34);
 
         lblMsgMon.setFont(Font.font("Arial", 12));
 
@@ -115,21 +127,35 @@ public class ManageClass_Sub {
         btnAddMon.setOnAction(e -> {
             String id  = txtIdmonhoc.getText().trim();
             String ten = txtTenmon.getText().trim();
-            if (id.isEmpty() || ten.isEmpty()) { showMsg(lblMsgMon, "Điền đầy đủ!", "#dc2626"); return; }
-            if (mhControl.add(new Subject(id, ten))) {
-                showMsg(lblMsgMon, "Thêm thành công!", "#16a34a");
-                loadMonHoc(); clearFormMon();
-            } else showMsg(lblMsgMon, "Mã môn đã tồn tại!", "#dc2626");
+            String tcStr = txtSoTC.getText().trim();
+            if (id.isEmpty() || ten.isEmpty() || tcStr.isEmpty()) { showMsg(lblMsgMon, "Điền đầy đủ!", "#dc2626"); return; }
+            try {
+                int soTC = Integer.parseInt(tcStr);
+                if (mhControl.add(new Subject(id, ten, soTC))) {
+                    showMsg(lblMsgMon, "Thêm thành công!", "#16a34a");
+                    loadMonHoc();
+                    clearFormMon();
+                } else showMsg(lblMsgMon, "Mã môn đã tồn tại!", "#dc2626");
+            }catch (NumberFormatException ex){
+                showMsg(lblMsgMon, "Số tín chỉ phải là số nguyên!", "#dc2626");
+            }
         });
 
         btnUpdateMon.setOnAction(e -> {
             String id  = txtIdmonhoc.getText().trim();
             String ten = txtTenmon.getText().trim();
-            if (id.isEmpty() || ten.isEmpty()) { showMsg(lblMsgMon, "Chọn môn cần sửa!", "#dc2626"); return; }
-            if (mhControl.update(new Subject(id, ten))) {
-                showMsg(lblMsgMon, "Cập nhật thành công!", "#16a34a");
-                loadMonHoc(); clearFormMon();
-            } else showMsg(lblMsgMon, "Cập nhật thất bại!", "#dc2626");
+            String tcStr = txtSoTC.getText().trim();
+            if (id.isEmpty() || ten.isEmpty() || tcStr.isEmpty()) { showMsg(lblMsgMon, "Chọn môn cần sửa!", "#dc2626"); return; }
+            try {
+                int soTC = Integer.parseInt(tcStr);
+                if (mhControl.update(new Subject(id, ten, soTC))) {
+                    showMsg(lblMsgMon, "Cập nhật thành công!", "#16a34a");
+                    loadMonHoc();
+                    clearFormMon();
+                } else showMsg(lblMsgMon, "Cập nhật thất bại!", "#dc2626");
+            }catch (NumberFormatException ex) {
+                showMsg(lblMsgMon, "Số tín chỉ phải là số nguyên!", "#dc2626");
+            }
         });
 
         btnDeleteMon.setOnAction(e -> {
@@ -156,6 +182,7 @@ public class ManageClass_Sub {
                 new Separator(),
                 lblIdmon, txtIdmonhoc,
                 lblTenmon, txtTenmon,
+                lblSoTC, txtSoTC,
                 lblMsgMon, btnRowMon
         );
 
@@ -308,7 +335,7 @@ public class ManageClass_Sub {
     }
 
     private void clearFormMon() {
-        txtIdmonhoc.clear(); txtTenmon.clear();
+        txtIdmonhoc.clear(); txtTenmon.clear();txtSoTC.clear();
         lblMsgMon.setText("");
         txtIdmonhoc.setDisable(false);
         tableMonHoc.getSelectionModel().clearSelection();

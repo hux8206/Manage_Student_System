@@ -82,6 +82,24 @@ public class AttendanceForm {
 
         datePicker.setPrefHeight(36);
 
+        datePicker.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                LocalDate today = LocalDate.now();
+
+                // Kiểm tra: Nếu ngày trên lịch là TRƯỚC hôm nay HOẶC SAU hôm nay
+                if (date.isBefore(today) || date.isAfter(today)) {
+                    setDisable(true); // Khóa không cho click
+                    setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #9ca3af;"); // Đổi màu xám để báo hiệu
+                }
+            }
+        });
+
+        datePicker.valueProperty().addListener((obs, oldDate, newDate) -> {
+            if (newDate != null) loadDiemDanh();
+        });
+
         // Thanh chọn ngày
         HBox dBox = new HBox(12);
         dBox.setAlignment(Pos.CENTER_LEFT);
@@ -97,13 +115,12 @@ public class AttendanceForm {
             if (newDate != null) loadDiemDanh();
         });
 
-        // NÚT MỚI: Xem lịch sử vắng
         Button btnLichSu = new Button("Lịch sử vắng");
         btnLichSu.setPrefHeight(36);
         btnLichSu.setStyle("-fx-background-color: #f59e0b;-fx-text-fill: white;-fx-background-radius: 6;-fx-cursor: hand;-fx-font-weight: bold;");
         btnLichSu.setOnAction(e -> showLichSuVang());
 
-        Button btnSave = new Button("💾 Lưu điểm danh");
+        Button btnSave = new Button("Lưu điểm danh");
         btnSave.setPrefHeight(36);
         btnSave.setStyle("-fx-background-color: #16a34a;-fx-text-fill: white;-fx-background-radius: 6;-fx-cursor: hand;-fx-font-weight: bold;");
         btnSave.setOnAction(e -> saveDiemDanh());
@@ -180,7 +197,6 @@ public class AttendanceForm {
         center.getChildren().addAll(dateBox, table, lblMessage, lblTongKet);
         root.setCenter(center);
 
-        // Load danh sách ngay khi mở
         loadDiemDanh();
 
         Scene scene = new Scene(root, 900, 600);
@@ -198,7 +214,7 @@ public class AttendanceForm {
         ObservableList<DiemDanhRow> rows = FXCollections.observableArrayList();
 
         for (Student sv : svList) {
-            // Tìm trạng thái đã lưu
+
             String trangthai = "Có mặt"; // mặc định
             for (Attendance dd : ddList) {
                 if (dd.getMasv().equals(sv.getMasv())) {
@@ -218,11 +234,20 @@ public class AttendanceForm {
         List<Attendance> list = new ArrayList<>();
 
         for (DiemDanhRow row : table.getItems()) {
-            list.add(new Attendance(0,row.getMasv(), idmonhoc, malop, ngay, row.getTrangthai()));
+            if (row.isChanged()) {
+                list.add(new Attendance(0, row.getMasv(), idmonhoc, malop, ngay, row.getTrangthai()));
+            }
+        }
+
+        if (list.isEmpty()) {
+            showAlert("Không có sự thay đổi nào để lưu!", Alert.AlertType.INFORMATION);
+            return;
         }
 
         if (ddControl.saveAll(list)) {
-            // Reload để cập nhật số buổi vắng
+            for (DiemDanhRow row : table.getItems()) {
+                row.commitChange();
+            }
             loadDiemDanh();
             showAlert("Lưu điểm danh thành công!", Alert.AlertType.INFORMATION);
         } else {
@@ -249,12 +274,14 @@ public class AttendanceForm {
         private String masv;
         private String ten;
         private String trangthai;
+        private String trangthaiGoc;
         private int soVang;
 
         public DiemDanhRow(String masv, String ten, String trangthai, int soVang) {
             this.masv      = masv;
             this.ten       = ten;
             this.trangthai = trangthai;
+            this.trangthaiGoc = trangthai;
             this.soVang    = soVang;
         }
 
@@ -267,6 +294,14 @@ public class AttendanceForm {
         public void setTen(String ten)           { this.ten = ten; }
         public void setTrangthai(String tt)      { this.trangthai = tt; }
         public void setSoVang(int soVang)        { this.soVang = soVang; }
+
+        public boolean isChanged() {
+            return !this.trangthai.equals(this.trangthaiGoc);
+        }
+
+        public void commitChange() {
+            this.trangthaiGoc = this.trangthai;
+        }
     }
 
     private void showLichSuVang() {
@@ -287,7 +322,6 @@ public class AttendanceForm {
         lblChonNgay.setFont(Font.font("Arial", FontWeight.BOLD, 13));
 
         ComboBox<LocalDate> cboNgay = new ComboBox<>();
-        // Gọi xuống DB lấy những ngày thực sự có dữ liệu điểm danh
         List<LocalDate> listNgay = ddControl.getNgayDaDiemDanh(idmonhoc, malop);
         cboNgay.setItems(FXCollections.observableArrayList(listNgay));
         cboNgay.setPromptText("-- Chọn ngày --");
@@ -296,19 +330,15 @@ public class AttendanceForm {
         listViewVang.setPlaceholder(new Label("Vui lòng chọn ngày để xem..."));
         VBox.setVgrow(listViewVang, Priority.ALWAYS);
 
-        // Bắt sự kiện khi chọn ngày trên ComboBox
         cboNgay.setOnAction(e -> {
             LocalDate selectedDate = cboNgay.getValue();
             if (selectedDate != null) {
-                // Lấy danh sách điểm danh của ngày đó
                 List<Attendance> ddList = ddControl.getByNgay(idmonhoc, malop, selectedDate);
-                // Lấy danh sách sinh viên để map tên
                 List<Student> svList = svControl.getByLop(malop);
 
                 ObservableList<String> vangList = FXCollections.observableArrayList();
 
                 for (Attendance dd : ddList) {
-                    // Lọc ra những ông nào có chữ "Vắng" (bao gồm cả Vắng và Vắng có phép)
                     if (dd.getTrangthai().contains("Vắng")) {
                         String tenSv = "Không rõ";
                         for (Student sv : svList) {

@@ -8,7 +8,6 @@ import java.util.List;
 
 public class AttendanceControl {
 
-    // Lấy điểm danh theo môn, lớp, ngày
     public List<Attendance> getByNgay(String idmonhoc, String malop, LocalDate ngay) {
         List<Attendance> list = new ArrayList<>();
         String query = "SELECT * FROM diemdanh WHERE idmonhoc=? AND malop=? AND ngay=?";
@@ -32,9 +31,7 @@ public class AttendanceControl {
         return list;
     }
 
-    // Lưu điểm danh (thêm mới hoặc cập nhật)
     public boolean save(Attendance dd) {
-        // Kiểm tra đã có chưa
         String checkQuery = "SELECT id FROM diemdanh WHERE masv=? AND idmonhoc=? AND malop=? AND ngay=?";
         try (Connection conn = Databaseconnection.getConnection();
              PreparedStatement check = conn.prepareStatement(checkQuery)) {
@@ -45,7 +42,6 @@ public class AttendanceControl {
             ResultSet rs = check.executeQuery();
 
             if (rs.next()) {
-                // Đã có → cập nhật
                 int id = rs.getInt("id");
                 String updateQuery = "UPDATE diemdanh SET trangthai=? WHERE id=?";
                 PreparedStatement update = conn.prepareStatement(updateQuery);
@@ -53,7 +49,6 @@ public class AttendanceControl {
                 update.setInt(2, id);
                 return update.executeUpdate() > 0;
             } else {
-                // Chưa có → thêm mới
                 String insertQuery = "INSERT INTO diemdanh (masv, idmonhoc, malop, ngay, trangthai) VALUES (?,?,?,?,?)";
                 PreparedStatement insert = conn.prepareStatement(insertQuery);
                 insert.setString(1, dd.getMasv());
@@ -66,7 +61,6 @@ public class AttendanceControl {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // Lưu nhiều điểm danh cùng lúc
     public boolean saveAll(List<Attendance> list) {
         for (Attendance dd : list) {
             if (!save(dd)) return false;
@@ -74,7 +68,6 @@ public class AttendanceControl {
         return true;
     }
 
-    // Thống kê số buổi vắng của sinh viên
     public int getSoVang(String masv, String idmonhoc, String malop) {
         String query = "SELECT COUNT(*) FROM diemdanh WHERE masv=? AND idmonhoc=? AND malop=? AND trangthai='Vắng'";
         try (Connection conn = Databaseconnection.getConnection();
@@ -88,7 +81,6 @@ public class AttendanceControl {
         return 0;
     }
 
-    // Lấy tất cả ngày đã điểm danh của môn + lớp
     public List<LocalDate> getNgayDaDiemDanh(String idmonhoc, String malop) {
         List<LocalDate> list = new ArrayList<>();
         String query = "SELECT DISTINCT ngay FROM diemdanh WHERE idmonhoc=? AND malop=? ORDER BY ngay DESC";

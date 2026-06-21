@@ -14,18 +14,19 @@ public class SubjectControl {
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
-                list.add(new Subject(rs.getString("idmonhoc"), rs.getString("tenmon")));
+                list.add(new Subject(rs.getString("idmonhoc"), rs.getString("tenmon"), rs.getInt("sotinchi")));
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
     }
 
     public boolean add(Subject mh) {
-        String query = "INSERT INTO monhoc (idmonhoc, tenmon) VALUES (?, ?)";
+        String query = "INSERT INTO monhoc (idmonhoc, tenmon, sotinchi) VALUES (?, ?, ?)";
         try (Connection conn = Databaseconnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, mh.getIdmonhoc());
             stmt.setString(2, mh.getTenmon());
+            stmt.setInt(3,mh.getSotinchi());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
@@ -36,6 +37,7 @@ public class SubjectControl {
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, mh.getTenmon());
             stmt.setString(2, mh.getIdmonhoc());
+            stmt.setInt(3,mh.getSotinchi());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
@@ -47,5 +49,18 @@ public class SubjectControl {
             stmt.setString(1, idSubject);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
+    }
+
+    public Subject getById(String idmonhoc) {
+        String query = "SELECT * FROM monhoc WHERE idmonhoc=?";
+        try (Connection conn = Databaseconnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, idmonhoc);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return new Subject(rs.getString("idmonhoc"), rs.getString("tenmon"), rs.getInt("sotinchi"));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
     }
 }

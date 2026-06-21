@@ -7,18 +7,19 @@ import java.util.List;
 
 public class ScoreControl {
 
-    private Score fromRs(ResultSet rs) throws SQLException {
+    private Score fromRs(ResultSet rs, int sotinchi) throws SQLException {
         return new Score(
                 rs.getString("masv"),
                 rs.getString("idmonhoc"),
                 rs.getDouble("chuyencan"),
                 rs.getDouble("baitap"),
                 rs.getDouble("giuaki"),
-                rs.getDouble("cuoiki")
+                rs.getDouble("cuoiki"),
+                sotinchi
         );
     }
 
-    public List<Score> getByMonAndLop(String idmonhoc, String malop) {
+    public List<Score> getByMonAndLop(String idmonhoc, String malop, int sotinchi) {
         List<Score> list = new ArrayList<>();
         String query =
                 "SELECT d.* FROM diem d " +
@@ -29,19 +30,19 @@ public class ScoreControl {
             stmt.setString(1, idmonhoc);
             stmt.setString(2, malop);
             ResultSet rs = stmt.executeQuery();
-            while (rs.next()) list.add(fromRs(rs));
+            while (rs.next()) list.add(fromRs(rs, sotinchi));
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
     }
 
-    public Score getByMasvAndMon(String masv, String idmonhoc) {
+    public Score getByMasvAndMon(String masv, String idmonhoc, int sotinchi) {
         String query = "SELECT * FROM diem WHERE masv=? AND idmonhoc=?";
         try (Connection conn = Databaseconnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setString(1, masv);
             stmt.setString(2, idmonhoc);
             ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return fromRs(rs);
+            if (rs.next()) return fromRs(rs, sotinchi);
         } catch (SQLException e) { e.printStackTrace(); }
         return null;
     }
@@ -76,9 +77,8 @@ public class ScoreControl {
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
 
-    // Tự động thêm mới hoặc cập nhật
     public boolean save(Score d) {
-        if (getByMasvAndMon(d.getMasv(), d.getIdmonhoc()) != null) {
+        if (getByMasvAndMon(d.getMasv(), d.getIdmonhoc(), d.getsotinchi()) != null) {
             return update(d);
         }
         return add(d);

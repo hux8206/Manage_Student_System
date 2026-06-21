@@ -156,7 +156,10 @@ public class MainStage {
         stats.setPadding(new Insets(20, 0, 0, 0));
 
         int soSinhVien = new control.StudentControl().getByLop(malop).size();
-        int soDiem = new control.ScoreControl().getByMonAndLop(idmonhoc, malop).size();
+        control.SubjectControl mhControl = new control.SubjectControl();
+        model.Subject currentMon = mhControl.getById(idmonhoc);
+        int soTinChi = (currentMon != null) ? currentMon.getSotinchi() : 3;
+        int soDiem = new control.ScoreControl().getByMonAndLop(idmonhoc, malop, soTinChi ).size();
 
         stats.getChildren().addAll(
                 createStatCard("Sinh viên", soSinhVien + " người"),

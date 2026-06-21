@@ -34,6 +34,7 @@ public class ScoreForm {
     private TextField txtCuoiKi         = new TextField();
     private Label lblDiemTong           = new Label("Điểm tổng: --");
     private Label lblMessage            = new Label();
+    private int currentSoTinChi = 3;
 
     public ScoreForm(Stage stage, String idmonhoc, String tenmon, String malop, String tenlop) {
         this.stage    = stage;
@@ -44,6 +45,11 @@ public class ScoreForm {
     }
 
     public void show() {
+        control.SubjectControl mhControl = new control.SubjectControl();
+        model.Subject currentMon = mhControl.getById(idmonhoc);
+        if (currentMon != null) {
+            currentSoTinChi = currentMon.getSotinchi();
+        }
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #f0f4f8;");
 
@@ -175,6 +181,31 @@ public class ScoreForm {
             tf.textProperty().addListener((obs, o, n) -> updateDiemTong());
         }
 
+        // --- ẨN/HIỆN CỘT VÀ ĐỔI TÊN THEO SỐ TÍN CHỈ ---
+        if (currentSoTinChi == 3) {
+            colCC.setText("Chuyên cần\n(10%)");
+            colBT.setText("Bài tập\n(20%)");
+            colGK.setText("Giữa kì\n(20%)");
+            colCK.setText("Cuối kì\n(50%)");
+        } else if (currentSoTinChi == 2) {
+            colCC.setText("Chuyên cần\n(10%)");
+            colGK.setText("Giữa kì\n(30%)");
+            colCK.setText("Cuối kì\n(60%)");
+            colBT.setVisible(false);
+            txtBaiTap.setDisable(true);
+            txtBaiTap.setText("0");
+        } else if (currentSoTinChi == 1) {
+            colCC.setText("Chuyên cần\n(40%)");
+            colCK.setText("Cuối kì\n(60%)");
+            colGK.setVisible(false);
+            colBT.setVisible(false);
+            txtChuyenCan.setDisable(true);
+            txtBaiTap.setDisable(true);
+            txtChuyenCan.setText("0");
+            txtBaiTap.setText("0");
+        }
+        // ----------------------------------------------
+
         lblDiemTong.setFont(Font.font("Arial", FontWeight.BOLD, 15));
         lblDiemTong.setStyle(
                 "-fx-text-fill: #1e40af;" +
@@ -247,7 +278,9 @@ public class ScoreForm {
             double bt = txtBaiTap.getText().isEmpty()    ? 0 : Double.parseDouble(txtBaiTap.getText());
             double gk = txtGiuaKi.getText().isEmpty()    ? 0 : Double.parseDouble(txtGiuaKi.getText());
             double ck = txtCuoiKi.getText().isEmpty()    ? 0 : Double.parseDouble(txtCuoiKi.getText());
-            double tong = Score.tinhTong(cc, bt, gk, ck);
+
+            // Tính toán với trọng số tự động theo số tín chỉ
+            double tong = Score.tinhTong(cc, bt, gk, ck, currentSoTinChi);
             lblDiemTong.setText(String.format("Điểm tổng: %.1f", tong));
 
             if (tong >= 8)      lblDiemTong.setStyle("-fx-text-fill: #16a34a;-fx-font-weight: bold;-fx-background-color: #f0fdf4;-fx-padding: 10;-fx-border-color: #bbf7d0;-fx-border-radius: 6;-fx-background-radius: 6;");
@@ -278,7 +311,7 @@ public class ScoreForm {
                 showMessage("Điểm phải từ 0 đến 10!", "#dc2626"); return;
             }
 
-            Score d = new Score(masv, idmonhoc, cc, bt, gk, ck);
+            Score d = new Score(masv, idmonhoc, cc, bt, gk, ck, currentSoTinChi);
 
             // Dùng hàm save (tự động update nếu đã có, hoặc insert nếu chưa có)
             if (diemControl.save(d)) {
@@ -313,25 +346,21 @@ public class ScoreForm {
     }
 
     private void loadTable() {
-        // 1. Lấy toàn bộ sinh viên trong lớp
         List<Student> danhSachSV = svControl.getByLop(malop);
-        // 2. Lấy các điểm đã được lưu dưới Database
-        List<Score> danhSachDiem = diemControl.getByMonAndLop(idmonhoc, malop);
+        List<Score> danhSachDiem = diemControl.getByMonAndLop(idmonhoc, malop,currentSoTinChi);
 
         ObservableList<Score> listHienThi = FXCollections.observableArrayList();
 
         for (Student sv : danhSachSV) {
             Score diemCuaSV = null;
-            // Tìm xem sinh viên này đã có điểm dưới DB chưa
             for (Score d : danhSachDiem) {
                 if (d.getMasv().equals(sv.getMasv())) {
                     diemCuaSV = d;
                     break;
                 }
             }
-            // Nếu chưa có điểm, tạo tạm 1 đối tượng Score 0 điểm để hiển thị lên bảng
             if (diemCuaSV == null) {
-                diemCuaSV = new Score(sv.getMasv(), idmonhoc, 0, 0, 0, 0);
+                diemCuaSV = new Score(sv.getMasv(), idmonhoc, 0, 0, 0, 0,currentSoTinChi);
             }
             listHienThi.add(diemCuaSV);
         }

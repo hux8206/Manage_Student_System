@@ -66,7 +66,10 @@ public class StatisticForm {
         root.setTop(header);
 
         // ── Dữ liệu ─────────────────────────────────────────────────
-        List<Score> diemList = diemControl.getByMonAndLop(idmonhoc, malop);
+        control.SubjectControl mhControl = new control.SubjectControl();
+        model.Subject currentMon = mhControl.getById(idmonhoc);
+        int soTinChi = (currentMon != null) ? currentMon.getSotinchi() : 3;
+        List<Score> diemList = diemControl.getByMonAndLop(idmonhoc, malop, soTinChi);
         List<Student> svList = svControl.getByLop(malop);
 
         int tongSV     = svList.size();

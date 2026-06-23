@@ -1,14 +1,13 @@
 package view;
 
-import control.ClassControl;
-import control.ScoreControl;
-import control.StudentControl;
-import control.SubjectControl;
-import javafx.beans.property.SimpleStringProperty;
+import control.*;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -27,10 +26,11 @@ public class StudentMainStage {
     private StackPane contentArea;
 
     // Các lớp Control
+    private ChatControl chatControl = new ChatControl();
     private SubjectControl subjectControl = new SubjectControl();
     private ClassControl classControl = new ClassControl();
     private ScoreControl scoreControl = new ScoreControl();
-    private StudentControl studentControl = new StudentControl(); // Thêm Control cho Sinh viên
+    private StudentControl studentControl = new StudentControl();
 
     public StudentMainStage(Stage stage, User currentUser) {
         this.stage = stage;
@@ -86,7 +86,6 @@ public class StudentMainStage {
         contentArea = new StackPane();
         contentArea.setStyle("-fx-background-color: #f4f6f9;");
 
-        // Mặc định hiện màn hình Thông tin để ép sinh viên nhập tên trước
         switchContent(createInfoView());
 
         root.setTop(header);
@@ -101,8 +100,11 @@ public class StudentMainStage {
         btnChat.setOnAction(e -> switchContent(createChatView()));
 
         btnLogout.setOnAction(e -> {
+            chatControl.disconnect();
             new Login(stage).show();
         });
+
+        stage.setOnCloseRequest(e -> chatControl.disconnect());
 
         Scene scene = new Scene(root, 1000, 650);
         stage.setTitle("Student Portal");
@@ -112,7 +114,6 @@ public class StudentMainStage {
 
     // ================= CÁC HÀM TẠO GIAO DIỆN TỪNG TAB =================
 
-    // Tab 1: Đăng ký lớp học
     private VBox createEnrollmentView() {
         VBox box = new VBox(20);
         box.setPadding(new Insets(30));
@@ -172,7 +173,6 @@ public class StudentMainStage {
             String maLop = selectedLop.split(" - ")[0];
             String maSV = currentUser.getUsername();
 
-            // Kiểm tra xem sinh viên đã cập nhật tên chưa
             String tenSV = studentControl.getStudentName(maSV);
             if (tenSV == null || tenSV.trim().isEmpty()) {
                 lblStatus.setTextFill(Color.RED);
@@ -196,7 +196,6 @@ public class StudentMainStage {
         return box;
     }
 
-    // Tab 2: Thông tin cá nhân (Đã chuyển thành Form điền thông tin)
     private VBox createInfoView() {
         VBox box = new VBox(20);
         box.setPadding(new Insets(30));
@@ -215,7 +214,7 @@ public class StudentMainStage {
         Label lblMasv = new Label("Tài khoản (Mã SV):");
         lblMasv.setFont(Font.font("Arial", 14));
         TextField txtMasv = new TextField(masv);
-        txtMasv.setEditable(false); // Khóa không cho sửa MSSV
+        txtMasv.setEditable(false);
         txtMasv.setStyle("-fx-background-color: #e2e8f0; -fx-text-fill: #64748b;");
         txtMasv.setPrefWidth(250);
 
@@ -256,7 +255,6 @@ public class StudentMainStage {
         return box;
     }
 
-    // Tab 3: Xem điểm (Đã căn chỉnh bảng giãn đầy)
     private VBox createScoreView() {
         VBox box = new VBox(20);
         box.setPadding(new Insets(30));
@@ -266,7 +264,6 @@ public class StudentMainStage {
         lblTitle.setTextFill(Color.web("#1e40af"));
 
         TableView<java.util.List<String>> table = new TableView<>();
-        // THUỘC TÍNH NÀY GIÚP BẢNG TRẢI ĐỀU RA HẾT CHIỀU RỘNG
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
         TableColumn<java.util.List<String>, String> colMon = new TableColumn<>("Mã môn học");
@@ -314,37 +311,127 @@ public class StudentMainStage {
         return box;
     }
 
-    // Tab 4: Lịch sử điểm danh (Đã căn chỉnh bảng giãn đầy)
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    // ================= TAB 4: LỊCH SỬ ĐIỂM DANH (ĐÃ CẬP NHẬT CHỌN LỚP + DANH SÁCH VẮNG) =================
+    // ================= TAB 4: LỊCH SỬ ĐIỂM DANH (ĐÃ BỎ NỘI DUNG) =================
     private VBox createAttendanceView() {
         VBox box = new VBox(15);
-        box.setPadding(new Insets(20));
+        box.setPadding(new Insets(30));
 
-        // Hiển thị điểm chuyên cần hiện tại
-        Label lblDiemCC = new Label("Điểm chuyên cần: 8.5/10");
-        lblDiemCC.setStyle("-fx-font-size: 18px; -fx-text-fill: #e11d48; -fx-font-weight: bold;");
+        Label lblTitle = new Label("Lịch sử điểm danh");
+        lblTitle.setFont(Font.font("Arial", FontWeight.BOLD, 22));
+        lblTitle.setTextFill(Color.web("#1e40af"));
 
-        TableView<model.Attendance> table = new TableView<>();
+        HBox topBox = new HBox(10);
+        topBox.setAlignment(Pos.CENTER_LEFT);
+        Label lblChonLop = new Label("Chọn lớp học:");
+        lblChonLop.setFont(Font.font("Arial", 14));
+
+        ComboBox<String> cbLopHoc = new ComboBox<>();
+        cbLopHoc.setPrefWidth(250);
+        cbLopHoc.setPromptText("-- Chọn lớp để xem --");
+
+        List<String> enrolledClasses = classControl.getEnrolledClasses(currentUser.getUsername());
+        cbLopHoc.getItems().addAll(enrolledClasses);
+        topBox.getChildren().addAll(lblChonLop, cbLopHoc);
+
+        Label lblThongKe = new Label("Vui lòng chọn lớp để xem điểm danh.");
+        lblThongKe.setStyle("-fx-font-weight: bold; -fx-text-fill: #e11d48; -fx-font-size: 14px;");
+
+        TableView<java.util.List<String>> table = new TableView<>();
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-        TableColumn<model.Attendance, String> colNgay = new TableColumn<>("Ngày");
-        colNgay.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getNgay()));
+        TableColumn<java.util.List<String>, String> colNgay = new TableColumn<>("Thời gian");
+        colNgay.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().get(0)));
+        colNgay.setPrefWidth(120);
 
-        TableColumn<model.Attendance, String> colNoiDung = new TableColumn<>("Nội dung bài giảng");
-        colNoiDung.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getNoiDung()));
+        TableColumn<java.util.List<String>, String> colTrangThai = new TableColumn<>("Trạng thái của bạn");
+        colTrangThai.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().get(1)));
+        colTrangThai.setPrefWidth(150);
 
-        TableColumn<model.Attendance, String> colTrangThai = new TableColumn<>("Tình trạng");
-        colTrangThai.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().getTrangthai()));
+        TableColumn<java.util.List<String>, String> colVang = new TableColumn<>("Tình hình vắng nghỉ");
+        colVang.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().get(2)));
+        colVang.setPrefWidth(400);
 
-        table.getColumns().addAll(colNgay, colNoiDung, colTrangThai);
+        colVang.setCellFactory(tc -> {
+            TableCell<java.util.List<String>, String> cell = new TableCell<>();
+            javafx.scene.text.Text text = new javafx.scene.text.Text();
+            cell.setGraphic(text);
+            cell.setPrefHeight(Control.USE_COMPUTED_SIZE);
+            text.wrappingWidthProperty().bind(colVang.widthProperty());
+            text.textProperty().bind(cell.itemProperty());
+            return cell;
+        });
 
-        // Load dữ liệu từ AttendanceControl...
+        table.getColumns().addAll(colNgay, colTrangThai, colVang);
+        VBox.setVgrow(table, Priority.ALWAYS);
 
-        box.getChildren().addAll(lblDiemCC, table);
+        cbLopHoc.setOnAction(e -> {
+            String selected = cbLopHoc.getValue();
+            if (selected == null) return;
+            String maLop = selected.split(" - ")[0];
+
+            javafx.collections.ObservableList<java.util.List<String>> dataList = javafx.collections.FXCollections.observableArrayList();
+            int soBuoiVang = 0;
+            int tongSoBuoi = 0;
+
+            try (Connection conn = control.Databaseconnection.getConnection()) {
+                // Truy vấn đã xóa 'noidung'
+                String sqlMyAtt = "SELECT ngay, trangthai FROM diemdanh WHERE masv = ? AND (malop = ? OR idmonhoc = ?) ORDER BY ngay DESC";
+                PreparedStatement pst = conn.prepareStatement(sqlMyAtt);
+                pst.setString(1, currentUser.getUsername());
+                pst.setString(2, maLop);
+                pst.setString(3, maLop);
+                ResultSet rs = pst.executeQuery();
+
+                while (rs.next()) {
+                    tongSoBuoi++;
+                    java.util.List<String> row = new java.util.ArrayList<>();
+
+                    java.sql.Date sqlDate = rs.getDate("ngay");
+                    row.add(sqlDate != null ? sqlDate.toString() : "Chưa rõ");
+
+                    String myStatus = rs.getString("trangthai");
+                    row.add(myStatus);
+                    if (myStatus != null && myStatus.contains("Vắng")) soBuoiVang++;
+
+                    String sqlAbsent = "SELECT sv.ten, d.masv, d.trangthai FROM diemdanh d JOIN sinhvien sv ON d.masv = sv.masv " +
+                            "WHERE d.ngay = ? AND (d.malop = ? OR d.idmonhoc = ?) AND d.trangthai LIKE '%Vắng%'";
+                    PreparedStatement pstAbs = conn.prepareStatement(sqlAbsent);
+                    pstAbs.setDate(1, sqlDate);
+                    pstAbs.setString(2, maLop);
+                    pstAbs.setString(3, maLop);
+                    ResultSet rsAbs = pstAbs.executeQuery();
+
+                    StringBuilder absentList = new StringBuilder();
+                    int countAbs = 0;
+                    while (rsAbs.next()) {
+                        countAbs++;
+                        absentList.append("- ").append(rsAbs.getString("ten"))
+                                .append(" (").append(rsAbs.getString("masv")).append(") - ")
+                                .append(rsAbs.getString("trangthai")).append("\n");
+                    }
+
+                    if (countAbs == 0) {
+                        row.add("SV vắng: 0\n✅ Lớp đi học đầy đủ");
+                    } else {
+                        row.add("SV vắng: " + countAbs + "\n" + absentList.toString().trim());
+                    }
+
+                    dataList.add(row);
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            table.setItems(dataList);
+            lblThongKe.setText("Thống kê: Lớp đã học " + tongSoBuoi + " buổi | Bạn vắng " + soBuoiVang + " buổi");
+        });
+
+        box.getChildren().addAll(lblTitle, topBox, lblThongKe, table);
         return box;
     }
 
-    // Tab 5: Phòng Chat
+    // ================== TAB 5: PHÒNG CHAT (BẢN TỰ ĐỘNG BUNG ẢNH/FILE) ==================
     private VBox createChatView() {
         VBox box = new VBox(15);
         box.setPadding(new Insets(30));
@@ -361,22 +448,127 @@ public class StudentMainStage {
 
         List<String> enrolledClasses = classControl.getEnrolledClasses(currentUser.getUsername());
         cbChatClass.getItems().addAll(enrolledClasses);
-
         topBox.getChildren().addAll(lblChonLop, cbChatClass);
 
-        ListView<String> chatBox = new ListView<>();
-        VBox.setVgrow(chatBox, Priority.ALWAYS);
-        chatBox.setStyle("-fx-font-family: 'Arial'; -fx-font-size: 14px;");
+        // THAY THẾ ListView BẰNG VBox + ScrollPane ĐỂ HỖ TRỢ ẢNH
+        VBox chatContent = new VBox(10);
+        chatContent.setPadding(new Insets(10));
+        chatContent.setStyle("-fx-background-color: white; -fx-border-color: #cbd5e1; -fx-border-radius: 5; -fx-background-radius: 5;");
+
+        ScrollPane chatScroll = new ScrollPane(chatContent);
+        chatScroll.setFitToWidth(true);
+        chatScroll.setStyle("-fx-background-color: transparent;");
+        VBox.setVgrow(chatScroll, Priority.ALWAYS);
+
+        // KẾT NỐI SERVER
+        chatControl.connect(
+                currentUser.getUsername(),
+                (room, message) -> {
+                    String currentRoom = cbChatClass.getValue();
+                    if (currentRoom != null && currentRoom.equals(room)) {
+                        addChatMessage(chatContent, chatScroll, "", message);
+                    }
+                },
+                (sysMsg) -> addChatMessage(chatContent, chatScroll, "Hệ thống", sysMsg),
+
+                // LOGIC TỰ BUNG ẢNH VÀ HIỆN FILE
+                (room, from, filename, fileId, size, isImage) -> {
+                    String currentRoom = cbChatClass.getValue();
+                    if (currentRoom != null && currentRoom.equals(room)) {
+                        if (isImage) {
+                            try {
+                                // Tự động tải ngầm ảnh vào thư mục Temp
+                                java.io.File tempFile = java.io.File.createTempFile("chat_img_", "_" + filename);
+                                tempFile.deleteOnExit(); // Tự xóa khi tắt app
+
+                                Label loadingLbl = new Label("Đang tải ảnh từ " + from + "...");
+                                loadingLbl.setStyle("-fx-text-fill: gray; -fx-font-style: italic;");
+                                chatContent.getChildren().add(loadingLbl);
+                                Platform.runLater(() -> chatScroll.setVvalue(1.0));
+
+                                // Tải xong bung ảnh ra ngay trong khung chat
+                                chatControl.downloadFile(fileId, tempFile, () -> {
+                                    chatContent.getChildren().remove(loadingLbl);
+                                    addChatImage(chatContent, chatScroll, from, tempFile);
+                                });
+                            } catch (Exception ex) { ex.printStackTrace(); }
+                        } else {
+                            // Hiện nút Tải về cho File thường
+                            addChatFile(chatContent, chatScroll, from, filename, fileId);
+                        }
+                    }
+                }
+        );
 
         cbChatClass.setOnAction(e -> {
-            chatBox.getItems().clear();
+            chatContent.getChildren().clear();
             if (cbChatClass.getValue() != null) {
-                chatBox.getItems().add("=== Chào mừng bạn đến với phòng chat: " + cbChatClass.getValue() + " ===");
+                addChatMessage(chatContent, chatScroll, "Hệ thống", "=== Chào mừng bạn đến với phòng chat: " + cbChatClass.getValue() + " ===");
             }
         });
 
-        HBox inputBox = new HBox(10);
+        // THANH CÔNG CỤ
+        HBox toolBar = new HBox(15);
+        toolBar.setAlignment(Pos.CENTER_LEFT);
+        Button btnEmoji = new Button("😊 Emoji");
+        Button btnFile = new Button("📁 Gửi File");
+        Button btnImage = new Button("🖼 Gửi Ảnh");
+
+        String toolStyle = "-fx-background-color: transparent; -fx-text-fill: #1e40af; -fx-cursor: hand; -fx-font-weight: bold;";
+        btnEmoji.setStyle(toolStyle); btnFile.setStyle(toolStyle); btnImage.setStyle(toolStyle);
+
         TextField txtMessage = new TextField();
+        ContextMenu emojiMenu = new ContextMenu();
+        String[] emojis = {"😀", "😂", "😍", "😎", "👍", "🙏", "🎉", "❤", "🔥", "✅"};
+        HBox emojiBox = new HBox(5);
+        for(String em : emojis) {
+            Button b = new Button(em);
+            b.setStyle("-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 18px;");
+            b.setOnAction(ev -> { txtMessage.setText(txtMessage.getText() + em); emojiMenu.hide(); });
+            emojiBox.getChildren().add(b);
+        }
+        emojiMenu.getItems().add(new CustomMenuItem(emojiBox, false));
+        btnEmoji.setOnAction(e -> emojiMenu.show(btnEmoji, javafx.geometry.Side.TOP, 0, 0));
+
+        // NÚT GỬI FILE
+        btnFile.setOnAction(e -> {
+            String selectedRoom = cbChatClass.getValue();
+            if (selectedRoom == null) {
+                addChatMessage(chatContent, chatScroll, "Hệ thống", "Vui lòng chọn lớp trước khi gửi!"); return;
+            }
+            javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+            java.io.File file = fc.showOpenDialog(stage);
+            if (file != null) {
+                // Hiện ngay lập tức cho chính mình thấy
+                Label lbl = new Label("Bạn đã gửi tệp: " + file.getName());
+                lbl.setStyle("-fx-font-weight: bold; -fx-text-fill: #16a34a;");
+                chatContent.getChildren().add(lbl);
+                Platform.runLater(() -> chatScroll.setVvalue(1.0));
+
+                chatControl.sendFile(selectedRoom, file);
+            }
+        });
+
+        // NÚT GỬI ẢNH
+        btnImage.setOnAction(e -> {
+            String selectedRoom = cbChatClass.getValue();
+            if (selectedRoom == null) {
+                addChatMessage(chatContent, chatScroll, "Hệ thống", "Vui lòng chọn lớp trước khi gửi!"); return;
+            }
+            javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+            fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.gif"));
+            java.io.File file = fc.showOpenDialog(stage);
+            if (file != null) {
+                // Hiện ảnh ngay lập tức cho chính mình thấy
+                addChatImage(chatContent, chatScroll, "Bạn", file);
+                chatControl.sendFile(selectedRoom, file);
+            }
+        });
+
+        toolBar.getChildren().addAll(btnEmoji, btnFile, btnImage);
+
+        // KHUNG NHẬP TIN NHẮN
+        HBox inputBox = new HBox(10);
         txtMessage.setPromptText("Nhập tin nhắn...");
         txtMessage.setPrefHeight(40);
         HBox.setHgrow(txtMessage, Priority.ALWAYS);
@@ -387,23 +579,128 @@ public class StudentMainStage {
         btnSend.setStyle("-fx-background-color: #2cb67d; -fx-text-fill: white; -fx-font-weight: bold;");
 
         btnSend.setOnAction(e -> {
-            if (cbChatClass.getValue() == null) {
-                chatBox.getItems().add("Hệ thống: Vui lòng chọn lớp trước khi chat!");
-                return;
+            String selectedRoom = cbChatClass.getValue();
+            String text = txtMessage.getText().trim();
+            if (selectedRoom == null) {
+                addChatMessage(chatContent, chatScroll, "Hệ thống", "Vui lòng chọn lớp trước khi chat!"); return;
             }
-            if (!txtMessage.getText().trim().isEmpty()) {
-                String sender = currentUser != null ? currentUser.getUsername() : "Khách";
-                chatBox.getItems().add(sender + ": " + txtMessage.getText());
+            if (!text.isEmpty()) {
+                addChatMessage(chatContent, chatScroll, "Bạn", text);
+                chatControl.sendMessage(selectedRoom, text);
                 txtMessage.clear();
             }
         });
 
+        txtMessage.setOnAction(e -> btnSend.fire());
         inputBox.getChildren().addAll(txtMessage, btnSend);
-        box.getChildren().addAll(lblTitle, topBox, chatBox, inputBox);
+
+        box.getChildren().addAll(lblTitle, topBox, chatScroll, toolBar, inputBox);
         return box;
     }
 
-    // ================= HÀM TIỆN ÍCH DÙNG CHUNG =================
+    // ================= CÁC HÀM TIỆN ÍCH DÀNH RIÊNG CHO CHAT =================
+
+    private void addChatMessage(VBox chatContent, ScrollPane scroll, String sender, String text) {
+        String prefix = sender.isEmpty() ? "" : sender + ": ";
+        Label lbl = new Label(prefix + text);
+        lbl.setWrapText(true);
+        lbl.setStyle("-fx-font-size: 14px; -fx-font-family: 'Arial';");
+
+        if (sender.equals("Bạn")) {
+            lbl.setStyle("-fx-font-size: 14px; -fx-font-family: 'Arial'; -fx-text-fill: #16a34a; -fx-font-weight: bold;");
+        } else if (sender.equals("Hệ thống")) {
+            lbl.setStyle("-fx-font-size: 13px; -fx-font-family: 'Arial'; -fx-text-fill: gray; -fx-font-style: italic;");
+        }
+
+        chatContent.getChildren().add(lbl);
+        Platform.runLater(() -> scroll.setVvalue(1.0)); // Tự động cuộn xuống cuối
+    }
+
+    private void addChatImage(VBox chatContent, ScrollPane scroll, String sender, java.io.File imgFile) {
+        Label lbl = new Label(sender + " đã gửi một ảnh:");
+        lbl.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #1e40af;");
+        if (sender.equals("Bạn")) lbl.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #16a34a;");
+
+        try {
+            Image img = new Image(imgFile.toURI().toString());
+            ImageView imgView = new ImageView(img);
+            imgView.setFitWidth(250);
+            imgView.setPreserveRatio(true);
+            imgView.setStyle("-fx-cursor: hand;");
+
+            // Bấm vào ảnh nhỏ để phóng to
+            imgView.setOnMouseClicked(e -> showImagePreview(imgFile, imgFile.getName()));
+
+            VBox msgBox = new VBox(5, lbl, imgView);
+            msgBox.setStyle("-fx-background-color: #f1f5f9; -fx-padding: 10; -fx-background-radius: 8;");
+
+            chatContent.getChildren().add(msgBox);
+            Platform.runLater(() -> scroll.setVvalue(1.0));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addChatFile(VBox chatContent, ScrollPane scroll, String sender, String filename, String fileId) {
+        HBox fileBox = new HBox(15);
+        fileBox.setAlignment(Pos.CENTER_LEFT);
+        fileBox.setStyle("-fx-background-color: #e2e8f0; -fx-padding: 10; -fx-background-radius: 8;");
+
+        Label lbl = new Label("📁 " + sender + " gửi tệp: " + filename);
+        lbl.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+
+        Button btnDown = new Button("⬇ Tải về");
+        btnDown.setStyle("-fx-background-color: #16a34a; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;");
+
+        btnDown.setOnAction(e -> {
+            javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+            fc.setInitialFileName(filename);
+            java.io.File save = fc.showSaveDialog(stage);
+            if (save != null) {
+                btnDown.setText("Đang tải...");
+                btnDown.setDisable(true);
+
+                // Tải xong tự động kích hoạt phần mềm máy tính để mở file
+                chatControl.downloadFile(fileId, save, () -> {
+                    btnDown.setText("✅ Đã tải");
+                    try {
+                        java.awt.Desktop.getDesktop().open(save);
+                    } catch(Exception ex){
+                        System.out.println("Lỗi mở file: " + ex.getMessage());
+                    }
+                });
+            }
+        });
+
+        fileBox.getChildren().addAll(lbl, btnDown);
+        chatContent.getChildren().add(fileBox);
+        Platform.runLater(() -> scroll.setVvalue(1.0));
+    }
+
+    private void showImagePreview(java.io.File file, String title) {
+        Stage imgStage = new Stage();
+        imgStage.setTitle("Xem ảnh - " + title);
+        try {
+            Image image = new Image(file.toURI().toString());
+            ImageView imageView = new ImageView(image);
+            imageView.setPreserveRatio(true);
+            imageView.setFitWidth(800);
+            imageView.setFitHeight(600);
+
+            StackPane imgPane = new StackPane(imageView);
+            imgPane.setPadding(new Insets(10));
+            imgPane.setStyle("-fx-background-color: #2b3a55;");
+
+            Scene imgScene = new Scene(imgPane);
+            imgStage.setScene(imgScene);
+            imgStage.centerOnScreen();
+            imgStage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ================= HÀM TIỆN ÍCH KHUNG =================
 
     private Button createMenuButton(String text) {
         Button btn = new Button(text);

@@ -124,7 +124,7 @@ public class ScoreControl {
             }
 
             // --- 2. THÊM MÔN HỌC VÀO BẢNG ĐIỂM (Để Sinh viên thấy) ---
-            String sql = "INSERT INTO diem (masv, idmonhoc, chuyencan, baitap, giuaki, cuoiki, diemtong) VALUES (?, ?, 0, 0, 0, 0, 0)";
+            String sql = "INSERT INTO diem (masv, idmonhoc, chuyencan, baitap, giuaki, cuoiki, diemtong) VALUES (?, ?, 10, 0, 0, 0, 0)";
             try (PreparedStatement pst = conn.prepareStatement(sql)) {
                 pst.setString(1, masv);
                 pst.setString(2, idMonHoc);

@@ -63,4 +63,21 @@ public class SubjectControl {
         } catch (SQLException e) { e.printStackTrace(); }
         return null;
     }
+
+    // Hàm lấy tất cả môn học hiển thị cho ComboBox
+    public List<String> getAllSubjectNames() {
+        List<String> list = new ArrayList<>();
+        String sql = "SELECT idmonhoc, tenmon FROM monhoc";
+        try (Connection conn = Databaseconnection.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql);
+             ResultSet rs = pst.executeQuery()) {
+
+            while (rs.next()) {
+                list.add(rs.getString("idmonhoc") + " - " + rs.getString("tenmon"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
 }

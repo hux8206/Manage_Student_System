@@ -74,4 +74,40 @@ public class ClassControl {
         }
         return list;
     }
+
+    // Hàm lấy danh sách Lớp học dựa vào Mã môn học
+    public List<String> getClassesBySubject(String idMonHoc) {
+        List<String> list = new ArrayList<>();
+        String sql = "SELECT malop, tenlop FROM lop WHERE idmonhoc = ?";
+        try (Connection conn = Databaseconnection.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+
+            pst.setString(1, idMonHoc);
+            ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                list.add(rs.getString("malop") + " - " + rs.getString("tenlop"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    // Hàm lấy danh sách các lớp mà sinh viên ĐÃ THAM GIA (Dùng cho Phòng Chat)
+    public List<String> getEnrolledClasses(String masv) {
+        List<String> list = new ArrayList<>();
+        String sql = "SELECT l.malop, l.tenlop FROM lop l JOIN diem d ON l.idmonhoc = d.idmonhoc WHERE d.masv = ?";
+        try (Connection conn = Databaseconnection.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+
+            pst.setString(1, masv);
+            ResultSet rs = pst.executeQuery();
+            while (rs.next()) {
+                list.add(rs.getString("malop") + " - " + rs.getString("tenlop"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
 }

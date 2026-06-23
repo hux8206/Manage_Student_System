@@ -91,11 +91,11 @@ public class Login {
 
         // Username field
         VBox usernameBox = new VBox(8);
-        Label usernameLabel = new Label("Tên đăng nhập");
+        Label usernameLabel = new Label("Tên đăng nhập (Mã số SV)");
         usernameLabel.setFont(Font.font("Arial", FontWeight.BOLD, 13));
         usernameLabel.setTextFill(Color.web("#94a1b2"));
 
-        TextField usernameField = createStyledTextField("Nhập tên đăng nhập...");
+        TextField usernameField = createStyledTextField("Nhập tên đăng nhập (Mã số SV)...");
 
         usernameBox.getChildren().addAll(usernameLabel, usernameField);
 
@@ -126,13 +126,24 @@ public class Login {
                 return;
             }
 
-            // --- BẮT ĐẦU MÃ HÓA MẬT KHẨU ĐỂ SO SÁNH ---
             String hashedPassword = control.HashPassword.hashPass(password);
 
             LoginControl lc = new LoginControl();
-            // Truyền chuỗi đã băm (hashedPassword) xuống DB để kiểm tra
-            if (lc.authenticate(username, hashedPassword)) {
-                new SelectionForm(stage).show();
+            // Lấy đối tượng user sau khi kiểm tra
+            model.User loggedInUser = lc.authenticate(username, hashedPassword);
+
+            if (loggedInUser != null) {
+                // Kiểm tra phân quyền
+                String role = loggedInUser.getRole();
+
+                if (role.equalsIgnoreCase("teacher")) {
+                    // Nếu là teacher -> Chuyển vào form quản lý cũ của bạn
+                    new SelectionForm(stage).show();
+                } else {
+                    // Nếu là student -> Chuyển vào form dành cho sinh viên
+                    // Bạn cần tạo class StudentMainStage trong package view để dòng này không bị lỗi
+                    new StudentMainStage(stage, loggedInUser).show();
+                }
             } else {
                 errorLabel.setTextFill(Color.web("#ff6b6b"));
                 errorLabel.setText("Sai tên đăng nhập hoặc mật khẩu!");

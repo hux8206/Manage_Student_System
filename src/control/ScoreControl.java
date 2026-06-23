@@ -93,4 +93,47 @@ public class ScoreControl {
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) { e.printStackTrace(); return false; }
     }
+
+    public boolean enrollStudent(String masv, String idMonHoc, String maLop) {
+        try (Connection conn = Databaseconnection.getConnection()) {
+
+            // --- 1. CẬP NHẬT BẢNG SINH VIÊN (Để Giáo viên thấy) ---
+            String checkStudentSql = "SELECT masv FROM sinhvien WHERE masv = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkStudentSql)) {
+                checkStmt.setString(1, masv);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (!rs.next()) {
+                    // Nếu sinh viên chưa tồn tại -> Thêm mới kèm Mã lớp
+                    String insertStudentSql = "INSERT INTO sinhvien (masv, ten, malop) VALUES (?, ?, ?)";
+                    try (PreparedStatement insertStmt = conn.prepareStatement(insertStudentSql)) {
+                        insertStmt.setString(1, masv);
+                        insertStmt.setString(2, "Sinh viên " + masv);
+                        insertStmt.setString(3, maLop);
+                        insertStmt.executeUpdate();
+                    }
+                } else {
+                    // Nếu sinh viên đã tồn tại -> Cập nhật lại Mã lớp
+                    String updateStudentSql = "UPDATE sinhvien SET malop = ? WHERE masv = ?";
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updateStudentSql)) {
+                        updateStmt.setString(1, maLop);
+                        updateStmt.setString(2, masv);
+                        updateStmt.executeUpdate();
+                    }
+                }
+            }
+
+            // --- 2. THÊM MÔN HỌC VÀO BẢNG ĐIỂM (Để Sinh viên thấy) ---
+            String sql = "INSERT INTO diem (masv, idmonhoc, chuyencan, baitap, giuaki, cuoiki, diemtong) VALUES (?, ?, 0, 0, 0, 0, 0)";
+            try (PreparedStatement pst = conn.prepareStatement(sql)) {
+                pst.setString(1, masv);
+                pst.setString(2, idMonHoc);
+                return pst.executeUpdate() > 0;
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }

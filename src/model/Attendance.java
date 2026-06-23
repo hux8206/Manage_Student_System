@@ -8,6 +8,7 @@ public class Attendance {
     private String idmonhoc;
     private String malop;
     private LocalDate ngay;
+    private String noidung;
     private String trangthai;
 
     public Attendance(int id, String masv, String idmonhoc, String malop, LocalDate ngay, String trangthai) {

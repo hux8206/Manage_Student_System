@@ -92,4 +92,53 @@ public class StudentControl {
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
     }
+
+    // Hàm lấy họ tên sinh viên (nếu đã có trong CSDL)
+    public String getStudentName(String masv) {
+        String sql = "SELECT ten FROM sinhvien WHERE masv = ?";
+        try (Connection conn = Databaseconnection.getConnection();
+             PreparedStatement pst = conn.prepareStatement(sql)) {
+            pst.setString(1, masv);
+            ResultSet rs = pst.executeQuery();
+            if (rs.next()) {
+                return rs.getString("ten");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return ""; // Trả về chuỗi rỗng nếu chưa có
+    }
+
+    // Hàm thêm mới hoặc cập nhật thông tin sinh viên
+    public boolean updateStudentInfo(String masv, String newName) {
+        try (Connection conn = Databaseconnection.getConnection()) {
+            // Kiểm tra xem sinh viên này đã có trong bảng sinhvien chưa
+            String checkSql = "SELECT masv FROM sinhvien WHERE masv = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+                checkStmt.setString(1, masv);
+                ResultSet rs = checkStmt.executeQuery();
+
+                if (rs.next()) {
+                    // Nếu đã có -> UPDATE tên mới
+                    String updateSql = "UPDATE sinhvien SET ten = ? WHERE masv = ?";
+                    try (PreparedStatement upStmt = conn.prepareStatement(updateSql)) {
+                        upStmt.setString(1, newName);
+                        upStmt.setString(2, masv);
+                        return upStmt.executeUpdate() > 0;
+                    }
+                } else {
+                    // Nếu chưa có (Lần đầu đăng nhập) -> INSERT mới
+                    String insertSql = "INSERT INTO sinhvien (masv, ten) VALUES (?, ?)";
+                    try (PreparedStatement inStmt = conn.prepareStatement(insertSql)) {
+                        inStmt.setString(1, masv);
+                        inStmt.setString(2, newName);
+                        return inStmt.executeUpdate() > 0;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 }
